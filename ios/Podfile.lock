@@ -1,0 +1,21 @@
+PODS:
+  - Flutter (1.0.0)
+  - histogram_core (1.0.0)
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - histogram_core (from `../native`)
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  histogram_core:
+    :path: "../native"
+
+SPEC CHECKSUMS:
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  histogram_core: 0e86ca7dc0b5ccaa0ee95f978d56e34b412e776b
+
+PODFILE CHECKSUM: 8dea1cf2ef4c85aa933648898228131398aa80bf
+
+COCOAPODS: 1.16.2

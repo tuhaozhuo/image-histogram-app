@@ -34,8 +34,9 @@ histogram_app/
 |---|---|---|---|
 | macOS arm64 bench | 12MP 合成图 | ~4 ms | 与标准公式 bin-exact |
 | Android 模拟器(debug) | 6MP 真实照片 | ~8 ms | bin-exact |
+| iOS 模拟器(debug) | 6MP 渐变图 | ~20 ms | bin-exact |
 
-均远低于 300ms 预算。
+均远低于 300ms 预算（模拟器 + debug 有虚拟化开销，真机 release 更快）。
 
 ## 构建与运行
 
@@ -52,7 +53,13 @@ flutter pub get
 flutter build apk --release
 ```
 
+**iOS**（需完整 Xcode + CocoaPods；C++ 通过 `native/histogram_core.podspec` 编译）
+```bash
+cd ios && pod install && cd ..
+flutter build ios --simulator --debug        # 或真机 --release
+```
+
 ## 状态
 
 - [x] Android 端完整跑通（相册/拍照/内置图，直方图 + 耗时，真机验证）
-- [ ] iOS 端接线（podspec + 符号保留，复用同一 C++ 核心）
+- [x] iOS 端接线完成（CocoaPods 本地 pod + `DynamicLibrary.process()`，复用同一 C++ 核心，模拟器验证）
