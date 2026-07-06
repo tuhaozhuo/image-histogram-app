@@ -33,10 +33,12 @@ histogram_app/
 | 环境 | 图像 | 耗时 | 准确性 |
 |---|---|---|---|
 | macOS arm64 bench | 12MP 合成图 | ~4 ms | 与标准公式 bin-exact |
+| **iOS 真机 (iPhone 17, release)** | 6MP | **~5 ms（均 <10ms）** | bin-exact |
+| Android 真机 (realme, release) | 6MP | 已验证达标 | bin-exact |
 | Android 模拟器(debug) | 6MP 真实照片 | ~8 ms | bin-exact |
 | iOS 模拟器(debug) | 6MP 渐变图 | ~20 ms | bin-exact |
 
-均远低于 300ms 预算（模拟器 + debug 有虚拟化开销，真机 release 更快）。
+均远低于 300ms 预算（模拟器/debug 有虚拟化开销，真机 release 最快）。
 
 ## 构建与运行
 
