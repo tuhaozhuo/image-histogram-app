@@ -2,6 +2,8 @@
 
 课题「图像直方图计算及性能优化」的实现：用户上传图片 → 高性能计算灰度直方图（≤300ms）→ 显示 256×100 黑白直方图 + 生成耗时。
 
+发布：[GitHub Releases](https://github.com/tuhaozhuo/image-histogram-app/releases)（v1.1.0，含可安装 Android APK）。
+
 ## 架构
 
 **Flutter（UI 单代码库，Android/iOS 双端）+ 共享 C++ 计算核心（dart:ffi）**。
@@ -64,4 +66,4 @@ flutter build ios --simulator --debug        # 或真机 --release
 ## 状态
 
 - [x] Android 端完整跑通（相册/拍照/内置图，直方图 + 耗时，真机验证）
-- [x] iOS 端接线完成（CocoaPods 本地 pod + `DynamicLibrary.process()`，复用同一 C++ 核心，模拟器验证）
+- [x] iOS 端接线完成（CocoaPods 本地 pod + `DynamicLibrary.process()`，复用同一 C++ 核心，模拟器 + 真机验证 ~5ms）
