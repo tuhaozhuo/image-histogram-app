@@ -1,4 +1,5 @@
 // home_page.dart — 主界面：上传 → 计算 → 查看结果（F1/F6/F8 + 界面需求）。
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -27,9 +28,24 @@ class _HomePageState extends State<HomePage> {
   bool _processing = false;
   bool _synthetic = false; // 当前结果是否来自内置渐变测试图
   bool _assetSample = false; // 当前结果是否来自内置真实样张
+  ui.Image? _syntheticImage; // 渐变测试图的可显示原图预览
   String? _error;
 
   static const String _samplePhotoAsset = 'assets/sample_photo.jpg';
+
+  @override
+  void dispose() {
+    _syntheticImage?.dispose();
+    super.dispose();
+  }
+
+  /// 把 RGBA 缓冲转成可显示的 ui.Image（用于渐变测试图的原图预览）。
+  Future<ui.Image> _rgbaToImage(Uint8List rgba, int w, int h) {
+    final Completer<ui.Image> completer = Completer<ui.Image>();
+    ui.decodeImageFromPixels(
+        rgba, w, h, ui.PixelFormat.rgba8888, completer.complete);
+    return completer.future;
+  }
 
   /// 解码图像字节为 RGBA 并调核心计算。返回 (结果, 宽, 高)。
   /// 解码不计入核心耗时（computeHistogram 只测 native 内部统计+归一化）。
@@ -108,11 +124,18 @@ class _HomePageState extends State<HomePage> {
         }
       }
       final HistogramResult result = computeHistogram(rgba, w, h);
-      if (!mounted) return;
+      // 额外把合成 RGBA 渲染成可显示的原图预览（不影响核心计时）。
+      final ui.Image image = await _rgbaToImage(rgba, w, h);
+      if (!mounted) {
+        image.dispose();
+        return;
+      }
+      _syntheticImage?.dispose();
       setState(() {
         _imgW = w;
         _imgH = h;
         _result = result;
+        _syntheticImage = image;
         _processing = false;
       });
     } catch (e) {
@@ -280,6 +303,17 @@ class _HomePageState extends State<HomePage> {
       );
     }
     if (_synthetic) {
+      if (_syntheticImage != null) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: RawImage(
+            image: _syntheticImage,
+            height: 180,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          ),
+        );
+      }
       return Container(
         height: 180,
         decoration: BoxDecoration(
