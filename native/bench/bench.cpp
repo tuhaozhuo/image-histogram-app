@@ -145,6 +145,21 @@ int run_case(const char* label, const uint8_t* rgba, int w, int h) {
 int main(int argc, char** argv) {
   int fails = 0;
 
+  // --dump <img>：只输出 256 个归一化值（逗号分隔），供与金标准脚本 diff 对拍。
+  if (argc >= 3 && std::string(argv[1]) == "--dump") {
+    int w = 0, h = 0, ch = 0;
+    unsigned char* data = stbi_load(argv[2], &w, &h, &ch, 4);
+    if (!data) {
+      printf("failed to load image: %s\n", argv[2]);
+      return 2;
+    }
+    int32_t out[256];
+    hist_compute_rgba(data, w, h, out);  // 默认精确实现
+    stbi_image_free(data);
+    for (int i = 0; i < 256; ++i) printf("%d%s", out[i], i < 255 ? "," : "\n");
+    return 0;
+  }
+
   if (argc >= 2) {
     int w = 0, h = 0, ch = 0;
     // 强制解码为 4 通道 RGBA。

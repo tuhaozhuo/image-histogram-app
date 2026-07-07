@@ -46,3 +46,4 @@ app.*.map.json
 
 # Native (C++ core) bench/build artifacts
 native/build/
+native/tests/verify_gray
