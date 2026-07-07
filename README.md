@@ -2,7 +2,9 @@
 
 课题「图像直方图计算及性能优化」的实现：用户上传图片 → 高性能计算灰度直方图（≤300ms）→ 显示 256×100 黑白直方图 + 生成耗时。
 
-发布：[GitHub Releases](https://github.com/tuhaozhuo/image-histogram-app/releases)（v1.1.0，含可安装 Android APK）。
+发布：[GitHub Releases](https://github.com/tuhaozhuo/image-histogram-app/releases)（v1.2.0，含可安装 Android APK）。
+
+📖 **完整开发手册**（分层讲解 / 三实现原理与精度 / 术语数字词典 / 快速上手 / **微信小程序移植指南**）见 [docs/开发手册.md](docs/开发手册.md)。
 
 ## 架构
 
