@@ -45,9 +45,18 @@ histogram_app/
 
 归一化：`out[i] = round(count[i] / max(count) × 100)`，落入 0–100。**特判 max==0** → 全 0，不除零。
 
-## 优化手段
+## 优化手段与多实现
 
-统计时灰度化（一次遍历）+ 分块多线程（按行切，各线程本地 256 直方图，最后归并，无锁）+ 按行连续访问。必要时 NEON。
+统计时灰度化（一次遍历）+ 分块多线程（按行切，各线程本地 256 直方图，最后归并，无锁）+ 按行连续访问。
+
+三种实现供性能对比（`histogram.h` 的 `HIST_IMPL_*`）：单线程标量 / 多线程标量 / NEON 多线程。
+**默认 `hist_compute_rgba` 用多线程标量 double，保证 bin-exact**；NEON（`float32` 向量化）
+最快但个别 bin ±1，**仅用于对比展示，不要设为默认**（会牺牲准确性）。注意：NEON 只向量化
+灰度化，直方图累加是 scatter 无法向量化，提升有限。
+
+实时相机走 `hist_compute_gray`：相机 YUV 的 Y 通道即 BT.601 亮度 = 标准灰度公式，直接统计，
+**不要加 RGB 转换**（Y 已是灰度，转换是错的）。相机权限：Android `CAMERA`（AndroidManifest）、
+iOS `NSCameraUsageDescription`（Info.plist），均已加。
 
 ## 验证命令
 
@@ -97,6 +106,9 @@ sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
 sudo xcodebuild -runFirstLaunch && sudo xcodebuild -license accept
 brew install cocoapods
 ```
+
+**`pod install` 必须设 `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8`**，否则中文路径「短学期」
+触发 CocoaPods 的 Ruby 编码错误（Encoding::CompatibilityError）而崩溃。
 
 C++ 核心通过 **CocoaPods 本地 pod** 接入：`native/histogram_core.podspec` 编译
 `histogram.cpp`（同样 `-ffp-contract=off -O3`），在 `ios/Podfile` 中

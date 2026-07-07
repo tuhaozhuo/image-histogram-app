@@ -16,6 +16,11 @@
 #define HIST_EXPORT
 #endif
 
+// 实现选择（供性能对比）。
+#define HIST_IMPL_SCALAR_ST 0  // 单线程标量 double（baseline）
+#define HIST_IMPL_SCALAR_MT 1  // 多线程标量 double（默认，与标准公式 bin-exact）
+#define HIST_IMPL_NEON_MT 2    // 多线程 + NEON 向量化（最快，float32 舍入微小权衡）
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -37,6 +42,18 @@ extern "C" {
 //       width/height <= 0 或 rgba/out256 为空时返回 0，out256 清零（若非空）。
 HIST_EXPORT double hist_compute_rgba(const uint8_t* rgba, int32_t width,
                                      int32_t height, int32_t* out256);
+
+// 同上，但指定实现（HIST_IMPL_*）。用于性能对比。
+HIST_EXPORT double hist_compute_rgba_impl(const uint8_t* rgba, int32_t width,
+                                          int32_t height, int32_t* out256,
+                                          int32_t impl);
+
+// 直接统计灰度平面的直方图（相机 YUV 的 Y 通道即 BT.601 亮度 =
+// 标准灰度公式，无需 RGB 转换）。row_stride 为每行字节数（可 > width，用于
+// 相机帧的行对齐）。返回「统计 + 归一化」耗时（毫秒）。用于实时相机。
+HIST_EXPORT double hist_compute_gray(const uint8_t* gray, int32_t width,
+                                     int32_t height, int32_t row_stride,
+                                     int32_t* out256);
 
 #ifdef __cplusplus
 }

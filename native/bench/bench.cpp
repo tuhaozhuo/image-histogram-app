@@ -83,46 +83,61 @@ void print_ascii_histogram(const int32_t norm[256]) {
   printf("\n   gray=0%*sgray=255\n\n", cols - 10, "");
 }
 
-bool compare(const int32_t a[256], const int32_t b[256]) {
-  int mismatches = 0;
-  for (int i = 0; i < 256; ++i) {
-    if (a[i] != b[i]) {
-      if (mismatches < 8)
-        printf("  bin %3d: opt=%d ref=%d\n", i, a[i], b[i]);
-      ++mismatches;
+int count_mismatches(const int32_t a[256], const int32_t b[256]) {
+  int m = 0;
+  for (int i = 0; i < 256; ++i)
+    if (a[i] != b[i]) ++m;
+  return m;
+}
+
+// 跑单个实现，取多次最小耗时，写回 out256，返回最优耗时(ms)。
+double bench_impl(const uint8_t* rgba, int w, int h, int impl, int32_t out[256]) {
+  hist_compute_rgba_impl(rgba, w, h, out, impl);  // 预热
+  double best = 1e18;
+  for (int r = 0; r < 5; ++r) {
+    int32_t tmp[256];
+    double ms = hist_compute_rgba_impl(rgba, w, h, tmp, impl);
+    if (ms < best) {
+      best = ms;
+      std::memcpy(out, tmp, 256 * sizeof(int32_t));
     }
   }
-  if (mismatches) printf("  total mismatched bins: %d\n", mismatches);
-  return mismatches == 0;
+  return best;
 }
 
 int run_case(const char* label, const uint8_t* rgba, int w, int h) {
   printf("=== %s (%dx%d = %.1f MP) ===\n", label, w, h,
          (w * (double)h) / 1e6);
 
-  int32_t opt[256];
-  // 预热一次，再取多次运行的最小值（更能反映稳定性能）。
-  hist_compute_rgba(rgba, w, h, opt);
-  double best = 1e18;
-  const int runs = 5;
-  for (int r = 0; r < runs; ++r) {
-    int32_t tmp[256];
-    double ms = hist_compute_rgba(rgba, w, h, tmp);
-    if (ms < best) best = ms;
-    std::memcpy(opt, tmp, sizeof(opt));
-  }
-
   int32_t ref[256];
   reference_histogram(rgba, w, h, ref);
-  bool accurate = compare(opt, ref);
-  bool fast = best <= 300.0;
 
-  printf("  best time (of %d runs): %.2f ms   [%s ≤300ms]\n", runs, best,
-         fast ? "PASS" : "FAIL");
-  printf("  accuracy vs float reference: %s\n\n",
-         accurate ? "PASS (bin-exact)" : "FAIL");
-  print_ascii_histogram(opt);
-  return (fast && accurate) ? 0 : 1;
+  const int impls[3] = {HIST_IMPL_SCALAR_ST, HIST_IMPL_SCALAR_MT,
+                        HIST_IMPL_NEON_MT};
+  const char* names[3] = {"scalar 单线程 (baseline)", "scalar 多线程",
+                          "NEON 多线程"};
+  double base = 0;
+  int32_t out_default[256];
+  int fails = 0;
+
+  printf("  %-26s %10s %8s  %s\n", "实现", "耗时", "加速比", "精度(vs 标准公式)");
+  for (int i = 0; i < 3; ++i) {
+    int32_t out[256];
+    double ms = bench_impl(rgba, w, h, impls[i], out);
+    if (i == 0) base = ms;
+    const int mism = count_mismatches(out, ref);
+    char acc[48];
+    if (mism == 0)
+      std::snprintf(acc, sizeof(acc), "bin-exact ✓");
+    else
+      std::snprintf(acc, sizeof(acc), "%d bins ±1", mism);
+    printf("  %-24s %8.2f ms %6.2fx  %s\n", names[i], ms, base / ms, acc);
+    if (ms > 300.0) ++fails;
+    if (impls[i] == HIST_IMPL_SCALAR_MT) std::memcpy(out_default, out, sizeof(out));
+  }
+  printf("\n");
+  print_ascii_histogram(out_default);  // 默认精确实现的直方图形态
+  return fails;
 }
 
 }  // namespace

@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 实时相机直方图需要相机权限 -->
+    <uses-permission android:name="android.permission.CAMERA"/>
     <application
         android:label="histogram_app"
         android:name="${applicationName}"

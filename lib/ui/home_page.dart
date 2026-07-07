@@ -9,6 +9,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:image_picker/image_picker.dart';
 
 import '../ffi/histogram_ffi.dart';
+import 'camera_page.dart';
 import 'histogram_painter.dart';
 
 class HomePage extends StatefulWidget {
@@ -29,6 +30,8 @@ class _HomePageState extends State<HomePage> {
   bool _synthetic = false; // 当前结果是否来自内置渐变测试图
   bool _assetSample = false; // 当前结果是否来自内置真实样张
   ui.Image? _syntheticImage; // 渐变测试图的可显示原图预览
+  List<ImplResult>? _comparison; // 三实现性能对比结果
+  bool _comparing = false;
   String? _error;
 
   static const String _samplePhotoAsset = 'assets/sample_photo.jpg';
@@ -45,6 +48,48 @@ class _HomePageState extends State<HomePage> {
     ui.decodeImageFromPixels(
         rgba, w, h, ui.PixelFormat.rgba8888, completer.complete);
     return completer.future;
+  }
+
+  /// 合成一张 w×h 的斜纹渐变 RGBA 图（灰度分布较广，作可复现基准）。
+  Uint8List _makeSyntheticRgba(int w, int h) {
+    final Uint8List rgba = Uint8List(w * h * 4);
+    int idx = 0;
+    for (int y = 0; y < h; y++) {
+      for (int x = 0; x < w; x++) {
+        final int base = (x * 255) ~/ (w - 1);
+        rgba[idx++] = base; // R
+        rgba[idx++] = (base + y) & 0xFF; // G
+        rgba[idx++] = 255 - base; // B
+        rgba[idx++] = 255; // A
+      }
+    }
+    return rgba;
+  }
+
+  /// 三实现性能对比：对内置渐变基准图跑单线程/多线程/NEON，展示加速比。
+  Future<void> _runComparison() async {
+    setState(() {
+      _comparing = true;
+      _comparison = null;
+      _error = null;
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 16));
+    try {
+      const int w = 3000, h = 2000;
+      final Uint8List rgba = _makeSyntheticRgba(w, h);
+      final List<ImplResult> results = compareImplementations(rgba, w, h);
+      if (!mounted) return;
+      setState(() {
+        _comparison = results;
+        _comparing = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = '$e';
+        _comparing = false;
+      });
+    }
   }
 
   /// 解码图像字节为 RGBA 并调核心计算。返回 (结果, 宽, 高)。
@@ -112,17 +157,7 @@ class _HomePageState extends State<HomePage> {
     await Future<void>.delayed(const Duration(milliseconds: 16));
     try {
       const int w = 3000, h = 2000;
-      final Uint8List rgba = Uint8List(w * h * 4);
-      int idx = 0;
-      for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
-          final int base = (x * 255) ~/ (w - 1);
-          rgba[idx++] = base; // R
-          rgba[idx++] = (base + y) & 0xFF; // G
-          rgba[idx++] = 255 - base; // B
-          rgba[idx++] = 255; // A
-        }
-      }
+      final Uint8List rgba = _makeSyntheticRgba(w, h);
       final HistogramResult result = computeHistogram(rgba, w, h);
       // 额外把合成 RGBA 渲染成可显示的原图预览（不影响核心计时）。
       final ui.Image image = await _rgbaToImage(rgba, w, h);
@@ -242,7 +277,28 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             ),
+            const SizedBox(height: 8),
+            FilledButton.tonalIcon(
+              onPressed: (_processing || _comparing) ? null : _runComparison,
+              icon: const Icon(Icons.bolt),
+              label: const Text('三实现性能对比（标量 / 多线程 / NEON）'),
+            ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                    builder: (_) => const CameraHistogramPage()),
+              ),
+              icon: const Icon(Icons.videocam),
+              label: const Text('实时相机直方图'),
+            ),
             const SizedBox(height: 16),
+            if (_comparing)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            if (_comparison != null) _comparisonCard(_comparison!),
 
             if (_processing)
               const Padding(
@@ -345,6 +401,56 @@ class _HomePageState extends State<HomePage> {
         height: 180,
         width: double.infinity,
         fit: BoxFit.contain,
+      ),
+    );
+  }
+
+  Widget _comparisonCard(List<ImplResult> results) {
+    return Card(
+      color: Colors.indigo.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('三实现性能对比（内置渐变图 3000×2000）',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Table(
+              columnWidths: const {
+                0: FlexColumnWidth(2.4),
+                1: FlexColumnWidth(1.6),
+                2: FlexColumnWidth(1.3),
+                3: FlexColumnWidth(1.6),
+              },
+              children: [
+                const TableRow(children: [
+                  Text('实现', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('耗时', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('加速比', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('精度', style: TextStyle(fontWeight: FontWeight.bold)),
+                ]),
+                for (final r in results)
+                  TableRow(children: [
+                    Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(r.name)),
+                    Text('${r.elapsedMs.toStringAsFixed(2)} ms'),
+                    Text('${r.speedup.toStringAsFixed(2)}×',
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(r.mismatchBins == 0
+                        ? '精确'
+                        : '±1×${r.mismatchBins}'),
+                  ]),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '加速比相对单线程标量；NEON 用 float32 向量化，个别 bin 有 ±1 舍入差（性能/精度权衡）。',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+          ],
+        ),
       ),
     );
   }
