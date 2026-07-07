@@ -4,7 +4,8 @@
 
 发布：[GitHub Releases](https://github.com/tuhaozhuo/image-histogram-app/releases)（v1.2.0，含可安装 Android APK）。
 
-📖 **完整开发手册**（分层讲解 / 三实现原理与精度 / 术语数字词典 / 快速上手 / **微信小程序移植指南**）见 [docs/开发手册.md](docs/开发手册.md)。
+📖 **完整开发手册**（分层讲解 / 三实现原理与精度 / 术语数字词典 / 快速上手 / **微信小程序移植指南** / 准确性验证）见 [docs/开发手册.md](docs/开发手册.md)。
+🧪 **测试指南**（面向测试人员：功能/性能/准确性/边界/双端用例）见 [docs/测试指南.md](docs/测试指南.md)。
 
 ## 架构
 
