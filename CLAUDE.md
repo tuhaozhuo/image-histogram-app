@@ -2,7 +2,7 @@
 
 课题「图像直方图计算及性能优化」。用户上传图片 → 高性能计算灰度直方图（≤300ms）→ 显示 256×100 黑白直方图 + 生成耗时。评分核心两点：**计算速度（≤300ms）** 与 **结果准确性**。
 
-> 面向人类开发者/协作者的完整讲解（代码逐层、三实现原理与精度、术语词典、小程序移植）见 `docs/开发手册.md`。本文件是给 AI/开发者的规则手册（约定、踩坑、构建环境）。
+> 面向人类/协作者的文档在 `docs/`：`开发手册.md`（代码逐层 / 原理 / 术语 / 小程序移植 / 准确性验证方法）、`测试指南.md`（测试人员用例）、`准确性测试报告.md`（实测结果记录）。本文件是给 AI/开发者的规则手册（约定、踩坑、构建环境）。
 
 ## 架构
 
@@ -18,12 +18,14 @@ histogram_app/
 │   ├── histogram_core.podspec  # iOS CocoaPods 本地 pod（编译 histogram.cpp）
 │   ├── third_party/            # stb_image.h（仅 bench 解码真实图片用）
 │   ├── bench/bench.cpp         # macOS 原生基准 + 对拍 + ASCII 直方图
+│   ├── tests/                  # 准确性验证：穷举(verify_gray)/用例(accuracy_cases)/金标准(golden_check.py)
 │   └── CMakeLists.txt          # bench 与 Android NDK externalNativeBuild 双用途
 ├── lib/
 │   ├── ffi/              # dart:ffi 绑定（加载/查找 hist_compute_rgba）
 │   ├── ui/              # 选图/解码/调核心/绘制/耗时显示
 │   └── main.dart
 ├── assets/sample_photo.jpg     # 内置真实样张（自拍荷花，非 Apple 版权素材）
+├── docs/                       # 开发手册 / 测试指南 / 准确性测试报告
 ├── android/ · ios/             # 各自接入同一 native/ 核心（见下方构建节）
 └── pubspec.yaml
 ```
@@ -68,6 +70,8 @@ cmake --build native/build
 ./native/build/bench
 ```
 判定标准：12MP 图耗时 ≤300ms，且对拍全部 PASS。改完核心必须跑此验证，不只改不验。
+
+准确性验证（灰度穷举 256³ / 已知用例 / Python 金标准对拍）见 `native/tests/` 与实测记录 `docs/准确性测试报告.md`。
 
 ## 构建环境与运行（Flutter / Android）
 
@@ -147,3 +151,5 @@ xcrun simctl launch booted com.histogramapp.histogramApp
 ## 边界与容错
 
 纯黑图（max==0）、超大图、异常尺寸不崩溃。max==0 特判。多线程归并需覆盖行数不能整除线程数的余数。
+
+透明图：核心只用 RGB、忽略 alpha；但 Flutter `dart:ui` 解码会**预乘 alpha**，半透明像素 RGB 被改变（如半透红 255,0,0,α128 → 暗红 128,0,0，灰度 76→38），直方图随之偏移——**非计算错误**（stb/OpenCV 不预乘则无此现象），详见 `docs/准确性测试报告.md` §3。

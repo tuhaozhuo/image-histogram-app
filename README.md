@@ -95,3 +95,4 @@ flutter build ios --simulator --debug        # 或真机 --release
 - [x] iOS 端接线完成（CocoaPods 本地 pod + `DynamicLibrary.process()`，复用同一 C++ 核心，模拟器 + 真机验证 ~5ms）
 - [x] 创新①：NEON SIMD 向量化 + 三实现性能对比（bench + app 内可视化，双端真机验证）
 - [x] 创新②：实时相机直方图（YUV Y 通道直接统计，iOS 真机实时流畅）
+- [x] 准确性验证通过（灰度穷举 256³ + 已知用例 + 三实现对拍 + Python 金标准交叉验证，见 [报告](docs/准确性测试报告.md)）
